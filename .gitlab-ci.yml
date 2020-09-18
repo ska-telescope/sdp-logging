@@ -2,7 +2,7 @@
 
 .env: &env
   variables:
-    BUILD_PATH: src/logging
+    BUILD_PATH: src/ska_sdp_logging
 
 # ============================================================================
 # Build Python package
