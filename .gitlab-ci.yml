@@ -55,7 +55,6 @@ test:ska-sdp-logging:
     - python3 setup.py test
   after_script:
     # Move the coverage and unit test reports to the top level
-    - ls
     - mv .coverage $CI_JOB_NAME.coverage
     - mv unit-tests.xml unit-tests-${CI_JOB_NAME}.xml
   artifacts:
