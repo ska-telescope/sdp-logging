@@ -18,7 +18,7 @@ stages:
   image: python:latest
   artifacts:
     paths:
-      - ./$BUILD_PATH/dist/
+      - dist/
     expire_in: 1 week
   <<: *env
 
