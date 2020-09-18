@@ -1,7 +1,11 @@
-# Common definitions for GitLab CI files
+# GitLab CI jobs for SDP logging library
+
+.env: &env
+  variables:
+    BUILD_PATH: src/logging
 
 # ============================================================================
-# Common definitions for building Python packages
+# Build Python package
 # ============================================================================
 
 .build_python:
@@ -11,10 +15,12 @@
     paths:
       - ./$BUILD_PATH/dist/
     expire_in: 1 week
+  <<: *env
+
 
 # Executed on a non-master commit
 
-.build_python_dev:
+build:ska-sdp-logging_dev:
   extends: .build_python
   script:
     - cd $BUILD_PATH
@@ -23,7 +29,7 @@
 
 # Executed on a master commit
 
-.build_python_release:
+build:ska-sdp-logging:
   extends: .build_python
   script:
     - cd $BUILD_PATH
@@ -31,32 +37,15 @@
   only: [master]
 
 # ============================================================================
-# Common definitions for publishing Python packages
+# Test Python package
 # ============================================================================
 
-.publish_python:
-  stage: publish
-  image: python:latest
-  only: [master]
-  variables:
-    TWINE_USERNAME: $TWINE_USERNAME
-    TWINE_PASSWORD: $TWINE_PASSWORD
-  script:
-    - python3 -m pip install twine
-    - cd $BUILD_PATH
-    - twine upload --repository-url $PYPI_REPOSITORY_URL dist/* || true
-    - twine upload --skip-existing -u $PYPI_USER -p $PYPI_PASS dist/* || true
-
-# ============================================================================
-# Common definitions for testing Python packages
-# ============================================================================
-
-.test_python:
+test:ska-sdp-logging:
   stage: test
   image: nexus.engageska-portugal.pt/ska-docker/ska-python-buildenv:latest
   before_script:
     # Install from build artifacts
-#    - pip3 install ska-sdp-config --find-links src/config_db/dist
+    - pip3 install ska-sdp-config --find-links src/config_db/dist
     - pip3 install ska-sdp-logging --find-links src/ska_sdp_logging/dist
   script:
     - cd $BUILD_PATH
@@ -72,83 +61,24 @@
       - unit-tests-${CI_JOB_NAME}.xml
     expire_in: 1 week
     when: always
-
-.test_with_etcd:
-  services:
-    - name: quay.io/coreos/etcd:latest
-      alias: etcd
-      command:
-        - /usr/local/bin/etcd
-        - "--advertise-client-urls=http://0.0.0.0:2379"
-        - "--listen-client-urls=http://0.0.0.0:2379"
-        - "--initial-advertise-peer-urls=http://0.0.0.0:2380"
-        - "--listen-peer-urls=http://0.0.0.0:2380"
-        - "--initial-cluster=default=http://0.0.0.0:2380"
+    <<: *env
 
 # ============================================================================
-# Common definitions for building Docker images
+# Publish Python package (master only)
 # ============================================================================
 
-.build_docker:
-  stage: build_docker
+publish:ska-sdp-logging:
+  stage: publish
   dependencies:
-    - build:ska-sdp-logging_dev
-    - build:ska-sdp-config_dev
     - build:ska-sdp-logging
-    - build:ska-sdp-config
-  variables:
-    GIT_VERSION: ${CI_COMMIT_SHORT_SHA}
-    PREFIX_BUILD: ${CI_REGISTRY_IMAGE}
-  image: docker:stable
-  services:
-    - docker:dind
-  before_script:
-    - apk add make git
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-  script:
-    - cp src/config_db/dist/*.whl $BUILD_PATH
-    - cp src/logging/dist/*.whl $BUILD_PATH
-    - cd $BUILD_PATH
-    - make build
-    - make push
-
-# ============================================================================
-# Common definitions for publishing Docker images
-# ============================================================================
-
-.publish_docker:
-  stage: publish
-  only: [master]
-  variables:
-    GIT_VERSION: ${CI_COMMIT_SHORT_SHA}
-    PREFIX_BUILD: ${CI_REGISTRY_IMAGE}
-    PREFIX_RELEASE: ${DOCKER_REGISTRY_HOST}/${CI_PROJECT_NAME}
-  image: docker:stable
-  services:
-    - docker:dind
-  before_script:
-    - apk add make git
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker login -u $DOCKER_REGISTRY_USERNAME -p $DOCKER_REGISTRY_PASSWORD $DOCKER_REGISTRY_HOST
-  script:
-    - cd $BUILD_PATH
-    - make pull
-    - make push_release
-  retry: 2
-
-# ============================================================================
-# Common definitions for uploading results of XRay tests
-# ============================================================================
-
-.xray_report:
-  stage: publish
-  only: [master]
-  when: always
-  allow_failure: true
   image: python:latest
+  only: [master]
+  variables:
+    TWINE_USERNAME: $TWINE_USERNAME
+    TWINE_PASSWORD: $TWINE_PASSWORD
   script:
-    - 'curl -X POST -H "Content-Type: application/json" --fail
-         -H "Authorization: Basic $JIRA_AUTH"
-         --data @cucumber.json
-         https://jira.skatelescope.org/rest/raven/1.0/import/execution/cucumber'
-  retry: 2 # In case JIRA doesn't work first time
+    - python3 -m pip install twine
+    - cd $BUILD_PATH
+    - twine upload --repository-url $PYPI_REPOSITORY_URL dist/* || true
+    - twine upload --skip-existing -u $PYPI_USER -p $PYPI_PASS dist/* || true
+  <<: *env
