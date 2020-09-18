@@ -3,20 +3,19 @@
 """PIP setup script for the SDP Logging package."""
 
 import setuptools
-import ska_sdp_logging
 
 with open("README.md", "r") as fh:
     LONG_DESCRIPTION = fh.read()
 
 setuptools.setup(
     name='ska-sdp-logging',
-    version=ska_sdp_logging.__version__,
     description='SKA standard logging for SDP',
     author='SKA Sim Team',
     license='License :: OSI Approved :: BSD License',
     long_description=LONG_DESCRIPTION,
     long_description_content_type='text/markdown',
-    url='https://gitlab.com/ska-telescope/sdp-prototype/src/logging/',
+    url='https://gitlab.com/ska-telescope/sdp-logging',
+    package_dir={"": "src"},
     packages=setuptools.find_packages(),
     # Workaround: avoid declaring pytango dependency.
     # It's ok to fail to load if not there.
