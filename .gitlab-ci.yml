@@ -41,8 +41,8 @@ lint:
   before_script:
     - pip3 install -r requirements.txt -r requirements-test.txt
   script:
-    - pylint --exit-zero --output-format=parseable src/ska_sdp_config
-    - pylint --exit-zero --output-format=pylint2junit.JunitReporter src/ska_sdp_config > linting.xml
+    - pylint --exit-zero --output-format=parseable src/ska_sdp_logging
+    - pylint --exit-zero --output-format=pylint2junit.JunitReporter src/ska_sdp_logging > linting.xml
   after_script:
     - mkdir -p build/reports
     - mv linting.xml build/reports
