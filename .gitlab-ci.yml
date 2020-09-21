@@ -1,83 +1,129 @@
-# GitLab CI jobs for SDP logging library
+variables:
+  GIT_STRATEGY: clone
 
-.env: &env
-  variables:
-    BUILD_PATH: src/ska_sdp_logging
+workflow:
+  rules:
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_BRANCH
+
+stages:
+  - test
+  - lint
+  - build
+  - publish
+
+image: python:latest
+
+# ============================================================================
+# Test and lint Python package
+# ============================================================================
+
+test:
+  stage: test
+  image: nexus.engageska-portugal.pt/ska-docker/ska-python-buildenv:latest
+  before_script:
+    - pip3 install -r requirements.txt -r requirements-test.txt
+  script:
+    - python3 setup.py test
+  after_script:
+    - mkdir -p build/reports
+    - mv code-coverage.xml unit-tests.xml build/reports
+  artifacts:
+    paths:
+      - build
+    expire_in: 1 week
+    when: always
+
+lint:
+  stage: lint
+  dependencies:
+    - test
+  before_script:
+    - pip3 install -r requirements.txt -r requirements-test.txt
+  script:
+    - pylint --exit-zero --output-format=parseable src/ska_sdp_config
+    - pylint --exit-zero --output-format=pylint2junit.JunitReporter src/ska_sdp_config > linting.xml
+  after_script:
+    - mkdir -p build/reports
+    - mv linting.xml build/reports
+  artifacts:
+    paths:
+      - build
+    expire_in: 1 week
+    when: always
 
 # ============================================================================
 # Build Python package
 # ============================================================================
 
-stages:
-   - build
-   - test
-   - publish
-   
 .build_python:
   stage: build
-  image: python:latest
   artifacts:
     paths:
       - dist/
     expire_in: 1 week
-  <<: *env
-
 
 # Executed on a non-master commit
 
-build:ska-sdp-logging_dev:
+build_dev:
   extends: .build_python
+  except: [master]
   script:
     - python3 setup.py egg_info -b+dev.$CI_COMMIT_SHORT_SHA sdist bdist_wheel
-  except: [master]
 
 # Executed on a master commit
 
-build:ska-sdp-logging:
+build_release:
   extends: .build_python
+  only: [master]
   script:
     - python3 setup.py sdist bdist_wheel
-  only: [master]
 
 # ============================================================================
-# Test Python package
+# Publish Python package
 # ============================================================================
 
-test:ska-sdp-logging:
-  stage: test
-  image: nexus.engageska-portugal.pt/ska-docker/ska-python-buildenv:latest
-  before_script:
-    # Install from build artifacts
-    - pip3 install ska-sdp-config
-    - pip3 install ska-sdp-logging --find-links dist
-  script:
-    - pip3 install -r requirements.txt -r requirements-test.txt
-    - python3 setup.py test
-  after_script:
-    # Move the coverage and unit test reports to the top level
-    - mv .coverage $CI_JOB_NAME.coverage
-    - mv unit-tests.xml unit-tests-${CI_JOB_NAME}.xml
-  artifacts:
-    paths:
-      - $CI_JOB_NAME.coverage
-      - unit-tests-${CI_JOB_NAME}.xml
-    expire_in: 1 week
-    when: always
-
-# ============================================================================
-# Publish Python package (master only)
-# ============================================================================
-
-publish:ska-sdp-logging:
+.publish_python:
   stage: publish
-  dependencies:
-    - build:ska-sdp-logging
-  image: python:latest
+  before_script:
+    - pip install twine
+
+# Publish to GitLab
+
+publish_gitlab:
+  extends: .publish_python
+  when: manual
+  variables:
+    TWINE_USERNAME: gitlab-ci-token
+    TWINE_PASSWORD: ${CI_JOB_TOKEN}
+  script:
+    - twine upload --repository-url https://gitlab.com/api/v4/projects/${CI_PROJECT_ID}/packages/pypi dist/* || true
+
+# Publish to EngageSKA and PyPI on a master commit
+
+publish_release:
+  extends: .publish_python
   only: [master]
+  when: manual
   variables:
     TWINE_USERNAME: $TWINE_USERNAME
     TWINE_PASSWORD: $TWINE_PASSWORD
   script:
-    - python3 -m pip install twine
     - twine upload --repository-url $PYPI_REPOSITORY_URL dist/* || true
     - twine upload --skip-existing -u $PYPI_USER -p $PYPI_PASS dist/* || true
+
+# ============================================================================
+# CI metrics
+# ============================================================================
+
+create_ci_metrics:
+  stage: .post
+  when: always
+  script:
+    # Gitlab CI badges creation: START
+    - curl -s https://gitlab.com/ska-telescope/ci-metrics-utilities/raw/master/scripts/ci-badges-func.sh | sh
+    # Gitlab CI badges creation: END
+  artifacts:
+    paths:
+      - build
+    expire_in: 1 week
