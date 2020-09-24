@@ -70,8 +70,10 @@ build_dev:
   except: [master]
   script:
     - python3 setup.py egg_info -b+dev.$CI_COMMIT_SHORT_SHA sdist bdist_wheel
-  trigger: ska-telescope/sdp-config
 
+trigger:
+  stage: build
+  trigger: ska-telescope/sdp-config
 
 # Executed on a master commit
 
