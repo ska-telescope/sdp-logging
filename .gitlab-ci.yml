@@ -111,6 +111,7 @@ publish_release:
   script:
     - twine upload --repository-url $PYPI_REPOSITORY_URL dist/* || true
     - twine upload --skip-existing -u $PYPI_USER -p $PYPI_PASS dist/* || true
+  trigger: ska-telescopt/sdp-config
 
 # ============================================================================
 # CI metrics
