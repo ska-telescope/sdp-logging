@@ -73,7 +73,11 @@ build_dev:
 
 trigger:
   stage: build
-  trigger: ska-telescope/sdp-config
+  variables:
+    BKM_TEST: testing123 
+  trigger:
+    project: ska-telescope/sdp-config
+    branch: ci-tests
 
 # Executed on a master commit
 
