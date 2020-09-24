@@ -16,7 +16,7 @@ setuptools.setup(
     long_description_content_type='text/markdown',
     url='https://gitlab.com/ska-telescope/sdp-logging',
     package_dir={"": "src"},
-    packages=setuptools.find_packages(),
+    packages=setuptools.find_packages('src'),
     # Workaround: avoid declaring pytango dependency.
     # It's ok to fail to load if not there.
     # install_requires=[
