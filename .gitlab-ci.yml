@@ -104,7 +104,6 @@ publish_gitlab:
 publish_release:
   extends: .publish_python
   only: [master]
-  when: manual
   variables:
     TWINE_USERNAME: $TWINE_USERNAME
     TWINE_PASSWORD: $TWINE_PASSWORD
